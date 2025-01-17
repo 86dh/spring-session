@@ -49,7 +49,7 @@ class RedisSessionExpirationPolicyTests {
 	// Wed Apr 15 10:27:32 CDT 2015
 	private static final Long ONE_MINUTE_AGO = 1429111652346L;
 
-	@Mock(lenient = true)
+	@Mock(strictness = Mock.Strictness.LENIENT)
 	RedisOperations<String, Object> sessionRedisOperations;
 
 	@Mock
@@ -84,7 +84,7 @@ class RedisSessionExpirationPolicyTests {
 	void onExpirationUpdatedRemovesOriginalExpirationTimeRoundedUp() {
 		long originalExpirationTimeInMs = ONE_MINUTE_AGO;
 		long originalRoundedToNextMinInMs = RedisSessionExpirationPolicy
-				.roundUpToNextMinute(originalExpirationTimeInMs);
+			.roundUpToNextMinute(originalExpirationTimeInMs);
 		String originalExpireKey = this.policy.getExpirationKey(originalRoundedToNextMinInMs);
 
 		this.policy.onExpirationUpdated(originalExpirationTimeInMs, this.session);
@@ -98,7 +98,7 @@ class RedisSessionExpirationPolicyTests {
 	void onExpirationUpdatedDoNotSendDeleteWhenExpirationTimeDoesNotChange() {
 		long originalExpirationTimeInMs = RedisSessionExpirationPolicy.expiresInMillis(this.session) - 10;
 		long originalRoundedToNextMinInMs = RedisSessionExpirationPolicy
-				.roundUpToNextMinute(originalExpirationTimeInMs);
+			.roundUpToNextMinute(originalExpirationTimeInMs);
 		String originalExpireKey = this.policy.getExpirationKey(originalRoundedToNextMinInMs);
 
 		this.policy.onExpirationUpdated(originalExpirationTimeInMs, this.session);

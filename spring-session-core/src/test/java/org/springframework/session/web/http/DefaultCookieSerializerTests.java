@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 the original author or authors.
+ * Copyright 2014-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 import jakarta.servlet.http.Cookie;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -200,7 +199,7 @@ class DefaultCookieSerializerTests {
 	void setDomainNameAndDomainNamePatternThrows() {
 		this.serializer.setDomainName("example.com");
 		assertThatIllegalStateException().isThrownBy(() -> this.serializer.setDomainNamePattern(".*"))
-				.withMessage("Cannot set both domainName and domainNamePattern");
+			.withMessage("Cannot set both domainName and domainNamePattern");
 	}
 
 	// --- domainNamePattern ---
@@ -229,7 +228,7 @@ class DefaultCookieSerializerTests {
 	void setDomainNamePatternAndDomainNameThrows() {
 		this.serializer.setDomainNamePattern(".*");
 		assertThatIllegalStateException().isThrownBy(() -> this.serializer.setDomainName("example.com"))
-				.withMessage("Cannot set both domainName and domainNamePattern");
+			.withMessage("Cannot set both domainName and domainNamePattern");
 	}
 
 	// --- cookieName ---
@@ -251,7 +250,7 @@ class DefaultCookieSerializerTests {
 	@Test
 	void setCookieNameNullThrows() {
 		assertThatIllegalArgumentException().isThrownBy(() -> this.serializer.setCookieName(null))
-				.withMessage("cookieName cannot be null");
+			.withMessage("cookieName cannot be null");
 	}
 
 	// --- cookiePath ---
@@ -459,6 +458,13 @@ class DefaultCookieSerializerTests {
 		this.serializer.setSameSite(null);
 		this.serializer.writeCookieValue(cookieValue(this.sessionId));
 		assertThat(getCookie().getSameSite()).isNull();
+	}
+
+	@Test
+	void writeCookieWhenPartitionedTrueThenSetPartitionedAttribute() {
+		this.serializer.setPartitioned(true);
+		this.serializer.writeCookieValue(cookieValue(this.sessionId));
+		assertThat(getCookie().isPartitioned()).isTrue();
 	}
 
 	void setCookieName(String cookieName) {

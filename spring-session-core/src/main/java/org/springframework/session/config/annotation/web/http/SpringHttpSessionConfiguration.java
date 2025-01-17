@@ -22,7 +22,6 @@ import java.util.List;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.http.HttpSessionListener;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -109,9 +108,7 @@ public class SpringHttpSessionConfiguration implements InitializingBean, Applica
 
 	@Override
 	public void afterPropertiesSet() {
-		CookieSerializer cookieSerializer = (this.cookieSerializer != null) ? this.cookieSerializer
-				: createDefaultCookieSerializer();
-		this.defaultHttpSessionIdResolver.setCookieSerializer(cookieSerializer);
+		this.defaultHttpSessionIdResolver.setCookieSerializer(getCookieSerializer());
 	}
 
 	@Bean
@@ -131,7 +128,7 @@ public class SpringHttpSessionConfiguration implements InitializingBean, Applica
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		if (ClassUtils.isPresent("org.springframework.security.web.authentication.RememberMeServices", null)) {
 			this.usesSpringSessionRememberMeServices = !ObjectUtils
-					.isEmpty(applicationContext.getBeanNamesForType(SpringSessionRememberMeServices.class));
+				.isEmpty(applicationContext.getBeanNamesForType(SpringSessionRememberMeServices.class));
 		}
 	}
 
@@ -153,6 +150,21 @@ public class SpringHttpSessionConfiguration implements InitializingBean, Applica
 	@Autowired(required = false)
 	public void setHttpSessionListeners(List<HttpSessionListener> listeners) {
 		this.httpSessionListeners = listeners;
+	}
+
+	private CookieSerializer getCookieSerializer() {
+		if (this.cookieSerializer != null) {
+			if (this.cookieSerializer instanceof DefaultCookieSerializer defaultCookieSerializer
+					&& this.usesSpringSessionRememberMeServices
+					&& defaultCookieSerializer.getRememberMeRequestAttribute() == null) {
+				this.logger.warn("Spring Session Remember Me support is enabled "
+						+ "and the DefaultCookieSerializer is provided explicitly. "
+						+ "The DefaultCookieSerializer must be configured with "
+						+ "setRememberMeRequestAttribute(String) in order to support Remember Me.");
+			}
+			return this.cookieSerializer;
+		}
+		return createDefaultCookieSerializer();
 	}
 
 	private CookieSerializer createDefaultCookieSerializer() {

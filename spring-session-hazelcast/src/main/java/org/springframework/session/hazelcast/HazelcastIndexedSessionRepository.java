@@ -48,6 +48,8 @@ import org.springframework.session.MapSession;
 import org.springframework.session.PrincipalNameIndexResolver;
 import org.springframework.session.SaveMode;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.events.AbstractSessionEvent;
 import org.springframework.session.events.SessionCreatedEvent;
 import org.springframework.session.events.SessionDeletedEvent;
@@ -151,6 +153,8 @@ public class HazelcastIndexedSessionRepository
 
 	private UUID sessionListenerId;
 
+	private SessionIdGenerator sessionIdGenerator = UuidSessionIdGenerator.getInstance();
+
 	/**
 	 * Create a new {@link HazelcastIndexedSessionRepository} instance.
 	 * @param hazelcastInstance the {@link HazelcastInstance} to use for managing sessions
@@ -245,7 +249,7 @@ public class HazelcastIndexedSessionRepository
 
 	@Override
 	public HazelcastSession createSession() {
-		MapSession cached = new MapSession();
+		MapSession cached = new MapSession(this.sessionIdGenerator);
 		cached.setMaxInactiveInterval(this.defaultMaxInactiveInterval);
 		HazelcastSession session = new HazelcastSession(cached, true);
 		session.flushImmediateIfNecessary();
@@ -350,6 +354,16 @@ public class HazelcastIndexedSessionRepository
 	}
 
 	/**
+	 * Set the {@link SessionIdGenerator} to use to generate session ids.
+	 * @param sessionIdGenerator the {@link SessionIdGenerator} to use
+	 * @since 3.2
+	 */
+	public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator) {
+		Assert.notNull(sessionIdGenerator, "sessionIdGenerator cannot be null");
+		this.sessionIdGenerator = sessionIdGenerator;
+	}
+
+	/**
 	 * A custom implementation of {@link Session} that uses a {@link MapSession} as the
 	 * basis for its mapping. It keeps track if changes have been made since last save.
 	 *
@@ -377,7 +391,7 @@ public class HazelcastIndexedSessionRepository
 			this.originalId = cached.getId();
 			if (this.isNew || (HazelcastIndexedSessionRepository.this.saveMode == SaveMode.ALWAYS)) {
 				getAttributeNames()
-						.forEach((attributeName) -> this.delta.put(attributeName, cached.getAttribute(attributeName)));
+					.forEach((attributeName) -> this.delta.put(attributeName, cached.getAttribute(attributeName)));
 			}
 		}
 
@@ -405,7 +419,8 @@ public class HazelcastIndexedSessionRepository
 
 		@Override
 		public String changeSessionId() {
-			String newSessionId = this.delegate.changeSessionId();
+			String newSessionId = HazelcastIndexedSessionRepository.this.sessionIdGenerator.generate();
+			this.delegate.setId(newSessionId);
 			this.sessionIdChanged = true;
 			return newSessionId;
 		}
@@ -448,7 +463,7 @@ public class HazelcastIndexedSessionRepository
 			this.delta.put(attributeName, attributeValue);
 			if (SPRING_SECURITY_CONTEXT.equals(attributeName)) {
 				Map<String, String> indexes = HazelcastIndexedSessionRepository.this.indexResolver
-						.resolveIndexesFor(this);
+					.resolveIndexesFor(this);
 				String principal = (attributeValue != null) ? indexes.get(PRINCIPAL_NAME_INDEX_NAME) : null;
 				this.delegate.setAttribute(PRINCIPAL_NAME_INDEX_NAME, principal);
 				this.delta.put(PRINCIPAL_NAME_INDEX_NAME, principal);

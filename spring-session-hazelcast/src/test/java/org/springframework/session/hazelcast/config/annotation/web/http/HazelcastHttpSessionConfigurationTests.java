@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2022 the original author or authors.
+ * Copyright 2014-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ import org.springframework.session.FlushMode;
 import org.springframework.session.IndexResolver;
 import org.springframework.session.SaveMode;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.hazelcast.HazelcastIndexedSessionRepository;
 import org.springframework.session.hazelcast.config.annotation.SpringSessionHazelcastInstance;
@@ -71,8 +73,10 @@ class HazelcastHttpSessionConfigurationTests {
 	@Test
 	void noHazelcastInstanceConfiguration() {
 		assertThatExceptionOfType(BeanCreationException.class)
-				.isThrownBy(() -> registerAndRefresh(NoHazelcastInstanceConfiguration.class)).havingRootCause()
-				.isInstanceOf(NoSuchBeanDefinitionException.class).withMessageContaining("HazelcastInstance");
+			.isThrownBy(() -> registerAndRefresh(NoHazelcastInstanceConfiguration.class))
+			.havingRootCause()
+			.isInstanceOf(NoSuchBeanDefinitionException.class)
+			.withMessageContaining("HazelcastInstance");
 	}
 
 	@Test
@@ -108,7 +112,7 @@ class HazelcastHttpSessionConfigurationTests {
 
 		HazelcastIndexedSessionRepository repository = this.context.getBean(HazelcastIndexedSessionRepository.class);
 		assertThat(repository).extracting("defaultMaxInactiveInterval")
-				.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
+			.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
 	}
 
 	@Test
@@ -117,7 +121,7 @@ class HazelcastHttpSessionConfigurationTests {
 
 		HazelcastIndexedSessionRepository repository = this.context.getBean(HazelcastIndexedSessionRepository.class);
 		assertThat(repository).extracting("defaultMaxInactiveInterval")
-				.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
+			.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
 	}
 
 	@Test
@@ -142,14 +146,14 @@ class HazelcastHttpSessionConfigurationTests {
 	void customSaveModeAnnotation() {
 		registerAndRefresh(BaseConfiguration.class, CustomSaveModeExpressionAnnotationConfiguration.class);
 		assertThat(this.context.getBean(HazelcastIndexedSessionRepository.class))
-				.hasFieldOrPropertyWithValue("saveMode", SaveMode.ALWAYS);
+			.hasFieldOrPropertyWithValue("saveMode", SaveMode.ALWAYS);
 	}
 
 	@Test
 	void customSaveModeSetter() {
 		registerAndRefresh(BaseConfiguration.class, CustomSaveModeExpressionSetterConfiguration.class);
 		assertThat(this.context.getBean(HazelcastIndexedSessionRepository.class))
-				.hasFieldOrPropertyWithValue("saveMode", SaveMode.ALWAYS);
+			.hasFieldOrPropertyWithValue("saveMode", SaveMode.ALWAYS);
 	}
 
 	@Test
@@ -162,7 +166,7 @@ class HazelcastHttpSessionConfigurationTests {
 		assertThat(repository).isNotNull();
 		assertThat(hazelcastInstance).isNotNull();
 		assertThat(ReflectionTestUtils.getField(repository, "sessions"))
-				.isEqualTo(QualifiedHazelcastInstanceConfiguration.qualifiedHazelcastInstanceSessions);
+			.isEqualTo(QualifiedHazelcastInstanceConfiguration.qualifiedHazelcastInstanceSessions);
 	}
 
 	@Test
@@ -174,7 +178,7 @@ class HazelcastHttpSessionConfigurationTests {
 		assertThat(repository).isNotNull();
 		assertThat(hazelcastInstance).isNotNull();
 		assertThat(ReflectionTestUtils.getField(repository, "sessions"))
-				.isEqualTo(PrimaryHazelcastInstanceConfiguration.primaryHazelcastInstanceSessions);
+			.isEqualTo(PrimaryHazelcastInstanceConfiguration.primaryHazelcastInstanceSessions);
 	}
 
 	@Test
@@ -187,7 +191,7 @@ class HazelcastHttpSessionConfigurationTests {
 		assertThat(repository).isNotNull();
 		assertThat(hazelcastInstance).isNotNull();
 		assertThat(ReflectionTestUtils.getField(repository, "sessions"))
-				.isEqualTo(QualifiedAndPrimaryHazelcastInstanceConfiguration.qualifiedHazelcastInstanceSessions);
+			.isEqualTo(QualifiedAndPrimaryHazelcastInstanceConfiguration.qualifiedHazelcastInstanceSessions);
 	}
 
 	@Test
@@ -199,15 +203,16 @@ class HazelcastHttpSessionConfigurationTests {
 		assertThat(repository).isNotNull();
 		assertThat(hazelcastInstance).isNotNull();
 		assertThat(ReflectionTestUtils.getField(repository, "sessions"))
-				.isEqualTo(NamedHazelcastInstanceConfiguration.hazelcastInstanceSessions);
+			.isEqualTo(NamedHazelcastInstanceConfiguration.hazelcastInstanceSessions);
 	}
 
 	@Test
 	void multipleHazelcastInstanceConfiguration() {
 		assertThatExceptionOfType(BeanCreationException.class)
-				.isThrownBy(() -> registerAndRefresh(MultipleHazelcastInstanceConfiguration.class)).havingRootCause()
-				.isInstanceOf(NoUniqueBeanDefinitionException.class)
-				.withMessageContaining("expected single matching bean but found 2");
+			.isThrownBy(() -> registerAndRefresh(MultipleHazelcastInstanceConfiguration.class))
+			.havingRootCause()
+			.isInstanceOf(NoUniqueBeanDefinitionException.class)
+			.withMessageContaining("expected single matching bean but found 2");
 	}
 
 	@Test
@@ -225,17 +230,33 @@ class HazelcastHttpSessionConfigurationTests {
 	void sessionRepositoryCustomizer() {
 		registerAndRefresh(SessionRepositoryCustomizerConfiguration.class);
 		HazelcastIndexedSessionRepository sessionRepository = this.context
-				.getBean(HazelcastIndexedSessionRepository.class);
+			.getBean(HazelcastIndexedSessionRepository.class);
 		assertThat(sessionRepository).extracting("defaultMaxInactiveInterval")
-				.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
+			.isEqualTo(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
 	}
 
 	@Test
 	void importConfigAndCustomize() {
 		registerAndRefresh(ImportConfigAndCustomizeConfiguration.class);
 		HazelcastIndexedSessionRepository sessionRepository = this.context
-				.getBean(HazelcastIndexedSessionRepository.class);
+			.getBean(HazelcastIndexedSessionRepository.class);
 		assertThat(sessionRepository).extracting("defaultMaxInactiveInterval").isEqualTo(Duration.ZERO);
+	}
+
+	@Test
+	void registerWhenSessionIdGeneratorBeanThenUses() {
+		registerAndRefresh(DefaultConfiguration.class, SessionIdGeneratorConfiguration.class);
+		HazelcastIndexedSessionRepository sessionRepository = this.context
+			.getBean(HazelcastIndexedSessionRepository.class);
+		assertThat(sessionRepository).extracting("sessionIdGenerator").isInstanceOf(TestSessionIdGenerator.class);
+	}
+
+	@Test
+	void registerWhenNoSessionIdGeneratorBeanThenDefault() {
+		registerAndRefresh(DefaultConfiguration.class);
+		HazelcastIndexedSessionRepository sessionRepository = this.context
+			.getBean(HazelcastIndexedSessionRepository.class);
+		assertThat(sessionRepository).extracting("sessionIdGenerator").isInstanceOf(UuidSessionIdGenerator.class);
 	}
 
 	private void registerAndRefresh(Class<?>... annotatedClasses) {
@@ -449,7 +470,7 @@ class HazelcastHttpSessionConfigurationTests {
 		@Order(1)
 		SessionRepositoryCustomizer<HazelcastIndexedSessionRepository> sessionRepositoryCustomizerTwo() {
 			return (sessionRepository) -> sessionRepository
-					.setDefaultMaxInactiveInterval(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
+				.setDefaultMaxInactiveInterval(Duration.ofSeconds(MAX_INACTIVE_INTERVAL_IN_SECONDS));
 		}
 
 	}
@@ -461,6 +482,25 @@ class HazelcastHttpSessionConfigurationTests {
 		@Bean
 		SessionRepositoryCustomizer<HazelcastIndexedSessionRepository> sessionRepositoryCustomizer() {
 			return (sessionRepository) -> sessionRepository.setDefaultMaxInactiveInterval(Duration.ZERO);
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class SessionIdGeneratorConfiguration {
+
+		@Bean
+		SessionIdGenerator sessionIdGenerator() {
+			return new TestSessionIdGenerator();
+		}
+
+	}
+
+	static class TestSessionIdGenerator implements SessionIdGenerator {
+
+		@Override
+		public String generate() {
+			return "test";
 		}
 
 	}

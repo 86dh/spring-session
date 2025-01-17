@@ -36,6 +36,8 @@ import org.springframework.data.mongodb.core.index.IndexOperations;
 import org.springframework.lang.Nullable;
 import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.MapSession;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.events.SessionCreatedEvent;
 import org.springframework.session.events.SessionDeletedEvent;
 import org.springframework.session.events.SessionExpiredEvent;
@@ -81,6 +83,8 @@ public class MongoIndexedSessionRepository
 
 	private ApplicationEventPublisher eventPublisher;
 
+	private SessionIdGenerator sessionIdGenerator = UuidSessionIdGenerator.getInstance();
+
 	public MongoIndexedSessionRepository(MongoOperations mongoOperations) {
 		this.mongoOperations = mongoOperations;
 	}
@@ -88,9 +92,7 @@ public class MongoIndexedSessionRepository
 	@Override
 	public MongoSession createSession() {
 
-		MongoSession session = new MongoSession();
-
-		session.setMaxInactiveInterval(this.defaultMaxInactiveInterval);
+		MongoSession session = new MongoSession(this.sessionIdGenerator, this.defaultMaxInactiveInterval.toSeconds());
 
 		publishEvent(new SessionCreatedEvent(this, session));
 
@@ -116,10 +118,13 @@ public class MongoIndexedSessionRepository
 
 		MongoSession session = MongoSessionUtils.convertToSession(this.mongoSessionConverter, sessionWrapper);
 
-		if (session != null && session.isExpired()) {
-			publishEvent(new SessionExpiredEvent(this, session));
-			deleteById(id);
-			return null;
+		if (session != null) {
+			if (session.isExpired()) {
+				publishEvent(new SessionExpiredEvent(this, session));
+				deleteById(id);
+				return null;
+			}
+			session.setSessionIdGenerator(this.sessionIdGenerator);
 		}
 
 		return session;
@@ -137,10 +142,12 @@ public class MongoIndexedSessionRepository
 	public Map<String, MongoSession> findByIndexNameAndIndexValue(String indexName, String indexValue) {
 
 		return Optional.ofNullable(this.mongoSessionConverter.getQueryForIndex(indexName, indexValue))
-				.map((query) -> this.mongoOperations.find(query, Document.class, this.collectionName))
-				.orElse(Collections.emptyList()).stream()
-				.map((dbSession) -> MongoSessionUtils.convertToSession(this.mongoSessionConverter, dbSession))
-				.collect(Collectors.toMap(MongoSession::getId, (mapSession) -> mapSession));
+			.map((query) -> this.mongoOperations.find(query, Document.class, this.collectionName))
+			.orElse(Collections.emptyList())
+			.stream()
+			.map((dbSession) -> MongoSessionUtils.convertToSession(this.mongoSessionConverter, dbSession))
+			.peek((session) -> session.setSessionIdGenerator(this.sessionIdGenerator))
+			.collect(Collectors.toMap(MongoSession::getId, (mapSession) -> mapSession));
 	}
 
 	@Override
@@ -214,6 +221,16 @@ public class MongoIndexedSessionRepository
 
 	public void setMongoSessionConverter(final AbstractMongoSessionConverter mongoSessionConverter) {
 		this.mongoSessionConverter = mongoSessionConverter;
+	}
+
+	/**
+	 * Set the {@link SessionIdGenerator} to use to generate session ids.
+	 * @param sessionIdGenerator the {@link SessionIdGenerator} to use
+	 * @since 3.2
+	 */
+	public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator) {
+		Assert.notNull(sessionIdGenerator, "sessionIdGenerator cannot be null");
+		this.sessionIdGenerator = sessionIdGenerator;
 	}
 
 }

@@ -19,9 +19,11 @@ package org.springframework.session.config.annotation.web.http;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.servlet.ServletContext;
-
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import org.springframework.beans.factory.UnsatisfiedDependencyException;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -39,6 +41,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for {@link SpringHttpSessionConfiguration}.
@@ -64,8 +70,8 @@ class SpringHttpSessionConfigurationTests {
 	@Test
 	void noSessionRepositoryConfiguration() {
 		assertThatExceptionOfType(UnsatisfiedDependencyException.class)
-				.isThrownBy(() -> registerAndRefresh(EmptyConfiguration.class))
-				.withMessageContaining("org.springframework.session.SessionRepository");
+			.isThrownBy(() -> registerAndRefresh(EmptyConfiguration.class))
+			.withMessageContaining("org.springframework.session.SessionRepository");
 	}
 
 	@Test
@@ -84,10 +90,10 @@ class SpringHttpSessionConfigurationTests {
 		SessionRepositoryFilter sessionRepositoryFilter = this.context.getBean(SessionRepositoryFilter.class);
 		assertThat(sessionRepositoryFilter).isNotNull();
 		CookieHttpSessionIdResolver httpSessionIdResolver = (CookieHttpSessionIdResolver) ReflectionTestUtils
-				.getField(sessionRepositoryFilter, "httpSessionIdResolver");
+			.getField(sessionRepositoryFilter, "httpSessionIdResolver");
 		assertThat(httpSessionIdResolver).isNotNull();
 		DefaultCookieSerializer cookieSerializer = (DefaultCookieSerializer) ReflectionTestUtils
-				.getField(httpSessionIdResolver, "cookieSerializer");
+			.getField(httpSessionIdResolver, "cookieSerializer");
 		assertThat(cookieSerializer).isNotNull();
 		assertThat(ReflectionTestUtils.getField(cookieSerializer, "cookieName")).isEqualTo("test-name");
 		assertThat(ReflectionTestUtils.getField(cookieSerializer, "cookiePath")).isEqualTo("test-path");
@@ -102,13 +108,26 @@ class SpringHttpSessionConfigurationTests {
 		SessionRepositoryFilter sessionRepositoryFilter = this.context.getBean(SessionRepositoryFilter.class);
 		assertThat(sessionRepositoryFilter).isNotNull();
 		CookieHttpSessionIdResolver httpSessionIdResolver = (CookieHttpSessionIdResolver) ReflectionTestUtils
-				.getField(sessionRepositoryFilter, "httpSessionIdResolver");
+			.getField(sessionRepositoryFilter, "httpSessionIdResolver");
 		assertThat(httpSessionIdResolver).isNotNull();
 		DefaultCookieSerializer cookieSerializer = (DefaultCookieSerializer) ReflectionTestUtils
-				.getField(httpSessionIdResolver, "cookieSerializer");
+			.getField(httpSessionIdResolver, "cookieSerializer");
 		assertThat(cookieSerializer).isNotNull();
 		assertThat(ReflectionTestUtils.getField(cookieSerializer, "rememberMeRequestAttribute"))
-				.isEqualTo(SpringSessionRememberMeServices.REMEMBER_ME_LOGIN_ATTR);
+			.isEqualTo(SpringSessionRememberMeServices.REMEMBER_ME_LOGIN_ATTR);
+	}
+
+	@Test
+	void rememberMeServicesAndCustomDefaultCookieSerializerThenWarnIfRememberMeRequestAttributeNotSet() {
+		try (MockedStatic<LogFactory> logFactoryMockedStatic = mockStatic(LogFactory.class)) {
+			Log logMock = mock();
+			logFactoryMockedStatic.when(() -> LogFactory.getLog(any(Class.class))).thenReturn(logMock);
+			registerAndRefresh(RememberMeServicesConfiguration.class, CustomDefaultCookieSerializerConfiguration.class);
+			verify(logMock).warn("Spring Session Remember Me support is enabled "
+					+ "and the DefaultCookieSerializer is provided explicitly. "
+					+ "The DefaultCookieSerializer must be configured with "
+					+ "setRememberMeRequestAttribute(String) in order to support Remember Me.");
+		}
 	}
 
 	@Configuration
@@ -155,6 +174,17 @@ class SpringHttpSessionConfigurationTests {
 		@Bean
 		SpringSessionRememberMeServices rememberMeServices() {
 			return new SpringSessionRememberMeServices();
+		}
+
+	}
+
+	@Configuration
+	@EnableSpringHttpSession
+	static class CustomDefaultCookieSerializerConfiguration {
+
+		@Bean
+		DefaultCookieSerializer defaultCookieSerializer() {
+			return new DefaultCookieSerializer();
 		}
 
 	}

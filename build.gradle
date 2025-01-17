@@ -3,8 +3,6 @@ buildscript {
 		releaseBuild = version.endsWith('RELEASE')
 		snapshotBuild = version.endsWith('SNAPSHOT')
 		milestoneBuild = !(releaseBuild || snapshotBuild)
-
-		springBootVersion = '3.0.0-SNAPSHOT'
 	}
 
 	repositories {
@@ -22,11 +20,16 @@ buildscript {
 	}
 
 	dependencies {
-		classpath "org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion"
+		classpath libs.org.springframework.boot.spring.boot.gradle.plugin
 	}
 }
 
+plugins {
+	id "com.github.ben-manes.versions"
+}
+
 apply plugin: 'io.spring.convention.root'
+apply plugin: 'io.spring.security.release'
 
 group = 'org.springframework.session'
 description = 'Spring Session'
@@ -41,10 +44,25 @@ subprojects {
 	tasks.withType(Test) {
 		useJUnitPlatform()
 	}
+
+	// Spring Framework 6.1 requires -parameters to be able to introspect method parameter names
+	tasks.withType(JavaCompile) {
+		options.compilerArgs.add("-parameters")
+	}
 }
 
 nohttp {
     source.exclude "buildSrc/build/**"
 	source.exclude "spring-session-docs/.gradle/nodejs/**"
 	source.exclude "spring-session-docs/modules/ROOT/examples/**/build/**"
+}
+
+springRelease {
+	repositoryOwner = "spring-projects"
+	repositoryName = "spring-session"
+	weekOfMonth = 3
+	dayOfWeek = 2
+	referenceDocUrl = "https://docs.spring.io/spring-session/reference/{version}/index.html"
+	apiDocUrl = "https://docs.spring.io/spring-session/docs/{version}/api/"
+	replaceSnapshotVersionInReferenceDocUrl = true
 }

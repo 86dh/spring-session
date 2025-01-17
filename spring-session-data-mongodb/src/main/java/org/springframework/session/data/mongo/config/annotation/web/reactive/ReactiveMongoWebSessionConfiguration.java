@@ -37,6 +37,8 @@ import org.springframework.data.mongodb.core.ReactiveMongoOperations;
 import org.springframework.session.IndexResolver;
 import org.springframework.session.MapSession;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.config.ReactiveSessionRepositoryCustomizer;
 import org.springframework.session.config.annotation.web.server.SpringWebSessionConfiguration;
 import org.springframework.session.data.mongo.AbstractMongoSessionConverter;
@@ -74,6 +76,8 @@ public class ReactiveMongoWebSessionConfiguration
 
 	private IndexResolver<Session> indexResolver;
 
+	private SessionIdGenerator sessionIdGenerator = UuidSessionIdGenerator.getInstance();
+
 	@Bean
 	public ReactiveMongoSessionRepository reactiveMongoSessionRepository(ReactiveMongoOperations operations) {
 
@@ -110,7 +114,9 @@ public class ReactiveMongoWebSessionConfiguration
 		}
 
 		this.sessionRepositoryCustomizers
-				.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(repository));
+			.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(repository));
+
+		repository.setSessionIdGenerator(this.sessionIdGenerator);
 
 		return repository;
 	}
@@ -124,11 +130,11 @@ public class ReactiveMongoWebSessionConfiguration
 	public void setImportMetadata(AnnotationMetadata importMetadata) {
 
 		AnnotationAttributes attributes = AnnotationAttributes
-				.fromMap(importMetadata.getAnnotationAttributes(EnableMongoWebSession.class.getName()));
+			.fromMap(importMetadata.getAnnotationAttributes(EnableMongoWebSession.class.getName()));
 
 		if (attributes != null) {
 			this.maxInactiveInterval = Duration
-					.ofSeconds(attributes.<Integer>getNumber("maxInactiveIntervalInSeconds"));
+				.ofSeconds(attributes.<Integer>getNumber("maxInactiveIntervalInSeconds"));
 		}
 
 		String collectionNameValue = (attributes != null) ? attributes.getString("collectionName") : "";
@@ -178,6 +184,11 @@ public class ReactiveMongoWebSessionConfiguration
 	@Autowired(required = false)
 	public void setIndexResolver(IndexResolver<Session> indexResolver) {
 		this.indexResolver = indexResolver;
+	}
+
+	@Autowired(required = false)
+	public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator) {
+		this.sessionIdGenerator = sessionIdGenerator;
 	}
 
 }

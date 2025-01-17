@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2022 the original author or authors.
+ * Copyright 2014-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,14 @@ import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EmbeddedValueResolverAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,10 +54,13 @@ import org.springframework.session.IndexResolver;
 import org.springframework.session.MapSession;
 import org.springframework.session.SaveMode;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.config.annotation.web.http.SpringHttpSessionConfiguration;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 import org.springframework.session.jdbc.config.annotation.SpringSessionDataSource;
+import org.springframework.session.jdbc.config.annotation.SpringSessionTransactionManager;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -77,7 +84,8 @@ import org.springframework.util.StringValueResolver;
  */
 @Configuration(proxyBeanMethods = false)
 @Import(SpringHttpSessionConfiguration.class)
-public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, EmbeddedValueResolverAware, ImportAware {
+public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, EmbeddedValueResolverAware, ImportAware,
+		ApplicationContextAware, InitializingBean {
 
 	private Duration maxInactiveInterval = MapSession.DEFAULT_MAX_INACTIVE_INTERVAL;
 
@@ -108,6 +116,23 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 	private ClassLoader classLoader;
 
 	private StringValueResolver embeddedValueResolver;
+
+	private SessionIdGenerator sessionIdGenerator = UuidSessionIdGenerator.getInstance();
+
+	private ApplicationContext applicationContext;
+
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		if (this.transactionOperations == null && this.transactionManager == null) {
+			this.transactionManager = getUniqueTransactionManager();
+			if (this.transactionManager == null) {
+				throw new IllegalStateException(
+						"""
+								Could not resolve an unique PlatformTransactionManager bean from the application context.
+								Please provide either a TransactionOperations bean named springSessionTransactionOperations or a PlatformTransactionManager bean qualified with @SpringSessionTransactionManager""");
+			}
+		}
+	}
 
 	@Bean
 	public JdbcIndexedSessionRepository sessionRepository() {
@@ -144,8 +169,9 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 		else {
 			sessionRepository.setConversionService(createConversionServiceWithBeanClassLoader(this.classLoader));
 		}
+		sessionRepository.setSessionIdGenerator(this.sessionIdGenerator);
 		this.sessionRepositoryCustomizers
-				.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(sessionRepository));
+			.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(sessionRepository));
 		return sessionRepository;
 	}
 
@@ -195,7 +221,8 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 		this.dataSource = dataSourceToUse;
 	}
 
-	@Autowired
+	@Autowired(required = false)
+	@SpringSessionTransactionManager
 	public void setTransactionManager(PlatformTransactionManager transactionManager) {
 		this.transactionManager = transactionManager;
 	}
@@ -235,6 +262,11 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 		this.sessionRepositoryCustomizers = sessionRepositoryCustomizers.orderedStream().collect(Collectors.toList());
 	}
 
+	@Autowired(required = false)
+	public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator) {
+		this.sessionIdGenerator = sessionIdGenerator;
+	}
+
 	@Override
 	public void setBeanClassLoader(ClassLoader classLoader) {
 		this.classLoader = classLoader;
@@ -248,7 +280,7 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 	@Override
 	public void setImportMetadata(AnnotationMetadata importMetadata) {
 		Map<String, Object> attributeMap = importMetadata
-				.getAnnotationAttributes(EnableJdbcHttpSession.class.getName());
+			.getAnnotationAttributes(EnableJdbcHttpSession.class.getName());
 		AnnotationAttributes attributes = AnnotationAttributes.fromMap(attributeMap);
 		if (attributes == null) {
 			return;
@@ -266,6 +298,15 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 		this.saveMode = attributes.getEnum("saveMode");
 	}
 
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
+	}
+
+	private PlatformTransactionManager getUniqueTransactionManager() {
+		return this.applicationContext.getBeanProvider(PlatformTransactionManager.class).getIfUnique();
+	}
+
 	private static JdbcTemplate createJdbcTemplate(DataSource dataSource) {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		jdbcTemplate.setExceptionTranslator(new SQLErrorCodeSQLExceptionTranslator(dataSource));
@@ -273,7 +314,7 @@ public class JdbcHttpSessionConfiguration implements BeanClassLoaderAware, Embed
 		return jdbcTemplate;
 	}
 
-	private static TransactionTemplate createTransactionTemplate(PlatformTransactionManager transactionManager) {
+	private TransactionTemplate createTransactionTemplate(PlatformTransactionManager transactionManager) {
 		TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 		transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 		transactionTemplate.afterPropertiesSet();

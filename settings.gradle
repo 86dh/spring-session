@@ -6,12 +6,13 @@ pluginManagement {
 }
 
 plugins {
-    id "com.gradle.enterprise" version "3.12.3"
-    id "io.spring.ge.conventions" version "0.0.7"
+    id "com.gradle.develocity" version "3.17.6"
+    id "io.spring.ge.conventions" version "0.0.17"
 }
 
 rootProject.name = 'spring-session-build'
 
+include 'spring-session-dependencies'
 include 'spring-session-bom'
 include 'spring-session-core'
 include 'spring-session-data-mongodb'
@@ -28,3 +29,4 @@ file('spring-session-samples').eachDirMatch(~/spring-session-sample-.*/) { dir -
 rootProject.children.each { project ->
     project.buildFileName = "${project.name}.gradle"
 }
+

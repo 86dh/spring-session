@@ -23,7 +23,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,7 +91,7 @@ class EnableSpringHttpSessionCustomCookieSerializerTests {
 	void usesReadSessionIds() throws Exception {
 		String sessionId = "sessionId";
 		given(this.cookieSerializer.readCookieValues(any(HttpServletRequest.class)))
-				.willReturn(Collections.singletonList(sessionId));
+			.willReturn(Collections.singletonList(sessionId));
 		given(this.sessionRepository.findById(anyString())).willReturn(new MapSession(sessionId));
 
 		this.sessionRepositoryFilter.doFilter(this.request, this.response, this.chain);

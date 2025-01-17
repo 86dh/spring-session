@@ -3,6 +3,8 @@ apply plugin: 'io.spring.convention.spring-module'
 description = "Spring Session"
 
 dependencies {
+	management platform(project(":spring-session-dependencies"))
+
 	api "org.springframework:spring-jcl"
 
 	optional "io.projectreactor:reactor-core"
@@ -19,7 +21,6 @@ dependencies {
 	testImplementation "io.projectreactor:reactor-test"
 	testImplementation "org.mockito:mockito-core"
 	testImplementation "org.mockito:mockito-junit-jupiter"
-	testImplementation "org.mockito:mockito-inline"
 	testImplementation "edu.umd.cs.mtc:multithreadedtc"
 	testImplementation "org.springframework:spring-test"
 	testImplementation "org.assertj:assertj-core"

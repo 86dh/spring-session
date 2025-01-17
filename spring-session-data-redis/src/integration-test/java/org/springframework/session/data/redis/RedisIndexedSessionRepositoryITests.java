@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2022 the original author or authors.
+ * Copyright 2014-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.session.data.redis;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.web.WebAppConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * Integration tests for {@link RedisIndexedSessionRepository}.
@@ -119,7 +121,7 @@ class RedisIndexedSessionRepositoryITests extends AbstractRedisITests {
 		assertThat(session.getId()).isEqualTo(toSave.getId());
 		assertThat(session.getAttributeNames()).isEqualTo(toSave.getAttributeNames());
 		assertThat(session.<String>getAttribute(expectedAttributeName))
-				.isEqualTo(toSave.getAttribute(expectedAttributeName));
+			.isEqualTo(toSave.getAttribute(expectedAttributeName));
 
 		this.registry.clear();
 
@@ -127,11 +129,27 @@ class RedisIndexedSessionRepositoryITests extends AbstractRedisITests {
 
 		assertThat(this.repository.findById(toSave.getId())).isNull();
 		assertThat(this.registry.<SessionDestroyedEvent>getEvent(toSave.getId()))
-				.isInstanceOf(SessionDestroyedEvent.class);
+			.isInstanceOf(SessionDestroyedEvent.class);
 		assertThat(this.redis.boundSetOps(usernameSessionKey).members()).doesNotContain(toSave.getId());
 
 		assertThat(this.registry.getEvent(toSave.getId()).getSession().<String>getAttribute(expectedAttributeName))
-				.isEqualTo(expectedAttributeValue);
+			.isEqualTo(expectedAttributeValue);
+	}
+
+	@Test
+	void saveThenSaveSessionKeyAndShadowKeyWith5MinutesDifference() {
+		RedisSession toSave = this.repository.createSession();
+		String expectedAttributeName = "a";
+		String expectedAttributeValue = "b";
+		toSave.setAttribute(expectedAttributeName, expectedAttributeValue);
+		this.repository.save(toSave);
+
+		Long sessionKeyExpire = this.redis.getExpire("RedisIndexedSessionRepositoryITests:sessions:" + toSave.getId(),
+				TimeUnit.SECONDS);
+		Long shadowKeyExpire = this.redis
+			.getExpire("RedisIndexedSessionRepositoryITests:sessions:expires:" + toSave.getId(), TimeUnit.SECONDS);
+		long differenceInSeconds = sessionKeyExpire - shadowKeyExpire;
+		assertThat(differenceInSeconds).isEqualTo(300);
 	}
 
 	@Test
@@ -680,6 +698,20 @@ class RedisIndexedSessionRepositoryITests extends AbstractRedisITests {
 		assertThat(this.repository.findById(originalId)).isNull();
 		assertThat(this.repository.findById(copy1.getId())).isNotNull();
 		assertThat(this.repository.findById(copy2.getId())).isNull();
+	}
+
+	// gh-1743
+	@Test
+	void saveChangeSessionIdWhenFailedRenameOperationExceptionThenIgnoreError() {
+		RedisSession toSave = this.repository.createSession();
+		String sessionId = toSave.getId();
+
+		this.repository.save(toSave);
+		RedisSession session = this.repository.findById(sessionId);
+		this.repository.deleteById(sessionId);
+		session.changeSessionId();
+
+		assertThatNoException().isThrownBy(() -> this.repository.save(session));
 	}
 
 	private String getSecurityName() {

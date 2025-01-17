@@ -24,7 +24,6 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionBindingListener;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -118,7 +117,7 @@ class HttpSessionAdapter<S extends Session> implements HttpSession {
 			if (oldValue instanceof HttpSessionBindingListener) {
 				try {
 					((HttpSessionBindingListener) oldValue)
-							.valueUnbound(new HttpSessionBindingEvent(this, name, oldValue));
+						.valueUnbound(new HttpSessionBindingEvent(this, name, oldValue));
 				}
 				catch (Throwable th) {
 					logger.error("Error invoking session binding event listener", th);

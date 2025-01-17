@@ -1,9 +1,10 @@
 plugins {
-    id "org.gretty" version "4.0.0"
+    id "org.gretty" version "4.1.0"
     id "io.spring.convention.spring-sample-war"
 }
 
 dependencies {
+	management platform(project(":spring-session-dependencies"))
 	implementation project(':spring-session-jdbc')
 	implementation "org.springframework:spring-web"
 	implementation "com.h2database:h2"

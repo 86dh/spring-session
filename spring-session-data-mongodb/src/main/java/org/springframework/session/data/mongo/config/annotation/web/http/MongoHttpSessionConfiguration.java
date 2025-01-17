@@ -36,6 +36,8 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.session.IndexResolver;
 import org.springframework.session.MapSession;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.config.annotation.web.http.SpringHttpSessionConfiguration;
 import org.springframework.session.data.mongo.AbstractMongoSessionConverter;
@@ -70,6 +72,8 @@ public class MongoHttpSessionConfiguration implements BeanClassLoaderAware, Embe
 
 	private IndexResolver<Session> indexResolver;
 
+	private SessionIdGenerator sessionIdGenerator = UuidSessionIdGenerator.getInstance();
+
 	@Bean
 	public MongoIndexedSessionRepository mongoSessionRepository(MongoOperations mongoOperations) {
 
@@ -98,9 +102,10 @@ public class MongoHttpSessionConfiguration implements BeanClassLoaderAware, Embe
 		if (StringUtils.hasText(this.collectionName)) {
 			repository.setCollectionName(this.collectionName);
 		}
+		repository.setSessionIdGenerator(this.sessionIdGenerator);
 
 		this.sessionRepositoryCustomizers
-				.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(repository));
+			.forEach((sessionRepositoryCustomizer) -> sessionRepositoryCustomizer.customize(repository));
 
 		return repository;
 	}
@@ -121,11 +126,11 @@ public class MongoHttpSessionConfiguration implements BeanClassLoaderAware, Embe
 	public void setImportMetadata(AnnotationMetadata importMetadata) {
 
 		AnnotationAttributes attributes = AnnotationAttributes
-				.fromMap(importMetadata.getAnnotationAttributes(EnableMongoHttpSession.class.getName()));
+			.fromMap(importMetadata.getAnnotationAttributes(EnableMongoHttpSession.class.getName()));
 
 		if (attributes != null) {
 			this.maxInactiveInterval = Duration
-					.ofSeconds(attributes.<Integer>getNumber("maxInactiveIntervalInSeconds"));
+				.ofSeconds(attributes.<Integer>getNumber("maxInactiveIntervalInSeconds"));
 		}
 
 		String collectionNameValue = (attributes != null) ? attributes.getString("collectionName") : "";
@@ -158,6 +163,11 @@ public class MongoHttpSessionConfiguration implements BeanClassLoaderAware, Embe
 	@Autowired(required = false)
 	public void setIndexResolver(IndexResolver<Session> indexResolver) {
 		this.indexResolver = indexResolver;
+	}
+
+	@Autowired(required = false)
+	public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator) {
+		this.sessionIdGenerator = sessionIdGenerator;
 	}
 
 }

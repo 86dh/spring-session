@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2022 the original author or authors.
+ * Copyright 2014-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionBindingEvent;
 import jakarta.servlet.http.HttpSessionBindingListener;
-
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -998,7 +997,7 @@ class SessionRepositoryFilterTests {
 		final String expectedId = "HttpSessionIdResolver-requested-id";
 
 		given(this.strategy.resolveSessionIds(any(HttpServletRequest.class)))
-				.willReturn(Collections.singletonList(expectedId));
+			.willReturn(Collections.singletonList(expectedId));
 		given(sessionRepository.findById(anyString())).willReturn(new MapSession(expectedId));
 
 		doFilter(new DoInFilter() {
@@ -1020,7 +1019,7 @@ class SessionRepositoryFilterTests {
 		final String otherId = "HttpSessionIdResolver-requested-id2";
 
 		given(this.strategy.resolveSessionIds(any(HttpServletRequest.class)))
-				.willReturn(Arrays.asList(expectedId, otherId));
+			.willReturn(Arrays.asList(expectedId, otherId));
 
 		doFilter(new DoInFilter() {
 			@Override
@@ -1189,7 +1188,7 @@ class SessionRepositoryFilterTests {
 	void order() {
 		assertThat(
 				AnnotationAwareOrderComparator.INSTANCE.compare(this.filter, new SessionRepositoryFilterDefaultOrder()))
-						.isZero();
+			.isZero();
 	}
 
 	// We want the filter to work without any dependencies on Spring
@@ -1201,7 +1200,7 @@ class SessionRepositoryFilterTests {
 	@Test
 	void setHttpSessionIdResolverNull() {
 		assertThatIllegalArgumentException().isThrownBy(() -> this.filter.setHttpSessionIdResolver(null))
-				.withMessage("httpSessionIdResolver cannot be null");
+			.withMessage("httpSessionIdResolver cannot be null");
 	}
 
 	@Test
@@ -1320,6 +1319,32 @@ class SessionRepositoryFilterTests {
 		assertThat(bindingListener.getCounter()).isEqualTo(1);
 	}
 
+	@Test // gh-2284
+	void doFilterIncludeCommitSessionOnce() throws Exception {
+		MapSession session = this.sessionRepository.createSession();
+		this.sessionRepository.save(session);
+		SessionRepository<MapSession> sessionRepository = spy(this.sessionRepository);
+		setSessionCookie(session.getId());
+
+		given(sessionRepository.findById(session.getId())).willReturn(session);
+
+		this.filter = new SessionRepositoryFilter<>(sessionRepository);
+
+		doFilter(new DoInFilter() {
+			@Override
+			public void doFilter(HttpServletRequest wrappedRequest, HttpServletResponse wrappedResponse)
+					throws IOException, ServletException {
+				String id = wrappedRequest.getSession().getId();
+				wrappedRequest.getRequestDispatcher("/").include(wrappedRequest, wrappedResponse);
+				assertThat(SessionRepositoryFilterTests.this.sessionRepository.findById(id)).isNotNull();
+				wrappedRequest.getRequestDispatcher("/").include(wrappedRequest, wrappedResponse);
+				verify(sessionRepository, times(1)).findById(session.getId());
+				verify(sessionRepository, times(1)).save(session);
+				verifyNoMoreInteractions(sessionRepository);
+			}
+		});
+	}
+
 	// --- helper methods
 
 	private void assertNewSession() {
@@ -1329,16 +1354,18 @@ class SessionRepositoryFilterTests {
 		assertThat(cookie.getValue()).isNotEqualTo("INVALID");
 		assertThat(cookie.isHttpOnly()).describedAs("Cookie is expected to be HTTP Only").isTrue();
 		assertThat(cookie.getSecure()).describedAs("Cookie secured is expected to be " + this.request.isSecure())
-				.isEqualTo(this.request.isSecure());
+			.isEqualTo(this.request.isSecure());
 		assertThat(this.request.getSession(false))
-				.describedAs("The original HttpServletRequest HttpSession should be null").isNull();
+			.describedAs("The original HttpServletRequest HttpSession should be null")
+			.isNull();
 	}
 
 	private void assertNoSession() {
 		Cookie cookie = getSessionCookie();
 		assertThat(cookie).isNull();
 		assertThat(this.request.getSession(false))
-				.describedAs("The original HttpServletRequest HttpSession should be null").isNull();
+			.describedAs("The original HttpServletRequest HttpSession should be null")
+			.isNull();
 	}
 
 	private Cookie getSessionCookie() {

@@ -48,13 +48,13 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class WebSocketRegistryListenerTests {
 
-	@Mock(lenient = true)
+	@Mock(strictness = Mock.Strictness.LENIENT)
 	private WebSocketSession wsSession;
 
-	@Mock(lenient = true)
+	@Mock(strictness = Mock.Strictness.LENIENT)
 	private WebSocketSession wsSession2;
 
-	@Mock(lenient = true)
+	@Mock(strictness = Mock.Strictness.LENIENT)
 	private Message<byte[]> message;
 
 	@Mock
@@ -150,7 +150,7 @@ class WebSocketRegistryListenerTests {
 		this.listener.onApplicationEvent(this.disconnect);
 
 		Map<String, Map<String, WebSocketSession>> httpSessionIdToWsSessions = (Map<String, Map<String, WebSocketSession>>) ReflectionTestUtils
-				.getField(this.listener, "httpSessionIdToWsSessions");
+			.getField(this.listener, "httpSessionIdToWsSessions");
 		assertThat(httpSessionIdToWsSessions).isEmpty();
 	}
 
